@@ -29,8 +29,8 @@
 
 #define ENABLE_VALIDATION false
 
-// Contains everything required to render a glTF model in Vulkan
-// This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
+ // Contains everything required to render a glTF model in Vulkan
+ // This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
 class VulkanglTFModel
 {
 public:
@@ -39,7 +39,8 @@ public:
 	VkQueue copyQueue;
 
 	// The vertex layout for the samples' model
-	struct Vertex {
+	struct Vertex
+	{
 		glm::vec3 pos;
 		glm::vec3 normal;
 		glm::vec2 uv;
@@ -47,13 +48,15 @@ public:
 	};
 
 	// Single vertex buffer for all primitives
-	struct {
+	struct
+	{
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 	} vertices;
 
 	// Single index buffer for all primitives
-	struct {
+	struct
+	{
 		int count;
 		VkBuffer buffer;
 		VkDeviceMemory memory;
@@ -64,39 +67,46 @@ public:
 	struct Node;
 
 	// A primitive contains the data for a single draw call
-	struct Primitive {
+	struct Primitive
+	{
 		uint32_t firstIndex;
 		uint32_t indexCount;
 		int32_t materialIndex;
 	};
 
 	// Contains the node's (optional) geometry and can be made up of an arbitrary number of primitives
-	struct Mesh {
+	struct Mesh
+	{
 		std::vector<Primitive> primitives;
 	};
 
 	// A node represents an object in the glTF scene graph
-	struct Node {
+	struct Node
+	{
 		Node* parent;
 		std::vector<Node*> children;
 		Mesh mesh;
 		glm::mat4 matrix;
-		~Node() {
-			for (auto& child : children) {
+		~Node()
+		{
+			for (auto& child : children)
+			{
 				delete child;
 			}
 		}
 	};
 
 	// A glTF material stores information in e.g. the texture that is attached to it and colors
-	struct Material {
+	struct Material
+	{
 		glm::vec4 baseColorFactor = glm::vec4(1.0f);
 		uint32_t baseColorTextureIndex;
 	};
 
 	// Contains the texture for a single glTF image
 	// Images may be reused by texture objects and are as such separated
-	struct Image {
+	struct Image
+	{
 		vks::Texture2D texture;
 		// We also store (and create) a descriptor set that's used to access this texture from the fragment shader
 		VkDescriptorSet descriptorSet;
@@ -104,7 +114,8 @@ public:
 
 	// A glTF texture stores a reference to the image and a sampler
 	// In this sample, we are only interested in the image
-	struct Texture {
+	struct Texture
+	{
 		int32_t imageIndex;
 	};
 
@@ -118,7 +129,8 @@ public:
 
 	~VulkanglTFModel()
 	{
-		for (auto node : nodes) {
+		for (auto node : nodes)
+		{
 			delete node;
 		}
 		// Release all Vulkan resources allocated for the model
@@ -126,7 +138,8 @@ public:
 		vkFreeMemory(vulkanDevice->logicalDevice, vertices.memory, nullptr);
 		vkDestroyBuffer(vulkanDevice->logicalDevice, indices.buffer, nullptr);
 		vkFreeMemory(vulkanDevice->logicalDevice, indices.memory, nullptr);
-		for (Image image : images) {
+		for (Image image : images)
+		{
 			vkDestroyImageView(vulkanDevice->logicalDevice, image.texture.view, nullptr);
 			vkDestroyImage(vulkanDevice->logicalDevice, image.texture.image, nullptr);
 			vkDestroySampler(vulkanDevice->logicalDevice, image.texture.sampler, nullptr);
@@ -145,32 +158,37 @@ public:
 		// Images can be stored inside the glTF (which is the case for the sample model), so instead of directly
 		// loading them from disk, we fetch them from the glTF loader and upload the buffers
 		images.resize(input.images.size());
-		for (size_t i = 0; i < input.images.size(); i++) {
+		for (size_t i = 0; i < input.images.size(); i++)
+		{
 			tinygltf::Image& glTFImage = input.images[i];
 			// Get the image data from the glTF loader
 			unsigned char* buffer = nullptr;
 			VkDeviceSize bufferSize = 0;
 			bool deleteBuffer = false;
 			// We convert RGB-only images to RGBA, as most devices don't support RGB-formats in Vulkan
-			if (glTFImage.component == 3) {
+			if (glTFImage.component == 3)
+			{
 				bufferSize = glTFImage.width * glTFImage.height * 4;
 				buffer = new unsigned char[bufferSize];
 				unsigned char* rgba = buffer;
 				unsigned char* rgb = &glTFImage.image[0];
-				for (size_t i = 0; i < glTFImage.width * glTFImage.height; ++i) {
+				for (size_t i = 0; i < glTFImage.width * glTFImage.height; ++i)
+				{
 					memcpy(rgba, rgb, sizeof(unsigned char) * 3);
 					rgba += 4;
 					rgb += 3;
 				}
 				deleteBuffer = true;
 			}
-			else {
+			else
+			{
 				buffer = &glTFImage.image[0];
 				bufferSize = glTFImage.image.size();
 			}
 			// Load texture from image buffer
 			images[i].texture.fromBuffer(buffer, bufferSize, VK_FORMAT_R8G8B8A8_UNORM, glTFImage.width, glTFImage.height, vulkanDevice, copyQueue);
-			if (deleteBuffer) {
+			if (deleteBuffer)
+			{
 				delete[] buffer;
 			}
 		}
@@ -179,7 +197,8 @@ public:
 	void loadTextures(tinygltf::Model& input)
 	{
 		textures.resize(input.textures.size());
-		for (size_t i = 0; i < input.textures.size(); i++) {
+		for (size_t i = 0; i < input.textures.size(); i++)
+		{
 			textures[i].imageIndex = input.textures[i].source;
 		}
 	}
@@ -187,15 +206,18 @@ public:
 	void loadMaterials(tinygltf::Model& input)
 	{
 		materials.resize(input.materials.size());
-		for (size_t i = 0; i < input.materials.size(); i++) {
+		for (size_t i = 0; i < input.materials.size(); i++)
+		{
 			// We only read the most basic properties required for our sample
 			tinygltf::Material glTFMaterial = input.materials[i];
 			// Get the base color factor
-			if (glTFMaterial.values.find("baseColorFactor") != glTFMaterial.values.end()) {
+			if (glTFMaterial.values.find("baseColorFactor") != glTFMaterial.values.end())
+			{
 				materials[i].baseColorFactor = glm::make_vec4(glTFMaterial.values["baseColorFactor"].ColorFactor().data());
 			}
 			// Get base color texture index
-			if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end()) {
+			if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end())
+			{
 				materials[i].baseColorTextureIndex = glTFMaterial.values["baseColorTexture"].TextureIndex();
 			}
 		}
@@ -209,33 +231,41 @@ public:
 
 		// Get the local node matrix
 		// It's either made up from translation, rotation, scale or a 4x4 matrix
-		if (inputNode.translation.size() == 3) {
+		if (inputNode.translation.size() == 3)
+		{
 			node->matrix = glm::translate(node->matrix, glm::vec3(glm::make_vec3(inputNode.translation.data())));
 		}
-		if (inputNode.rotation.size() == 4) {
+		if (inputNode.rotation.size() == 4)
+		{
 			glm::quat q = glm::make_quat(inputNode.rotation.data());
 			node->matrix *= glm::mat4(q);
 		}
-		if (inputNode.scale.size() == 3) {
+		if (inputNode.scale.size() == 3)
+		{
 			node->matrix = glm::scale(node->matrix, glm::vec3(glm::make_vec3(inputNode.scale.data())));
 		}
-		if (inputNode.matrix.size() == 16) {
+		if (inputNode.matrix.size() == 16)
+		{
 			node->matrix = glm::make_mat4x4(inputNode.matrix.data());
 		};
 
 		// Load node's children
-		if (inputNode.children.size() > 0) {
-			for (size_t i = 0; i < inputNode.children.size(); i++) {
-				loadNode(input.nodes[inputNode.children[i]], input , node, indexBuffer, vertexBuffer);
+		if (inputNode.children.size() > 0)
+		{
+			for (size_t i = 0; i < inputNode.children.size(); i++)
+			{
+				loadNode(input.nodes[inputNode.children[i]], input, node, indexBuffer, vertexBuffer);
 			}
 		}
 
 		// If the node contains mesh data, we load vertices and indices from the buffers
 		// In glTF this is done via accessors and buffer views
-		if (inputNode.mesh > -1) {
+		if (inputNode.mesh > -1)
+		{
 			const tinygltf::Mesh mesh = input.meshes[inputNode.mesh];
 			// Iterate through all primitives of this node's mesh
-			for (size_t i = 0; i < mesh.primitives.size(); i++) {
+			for (size_t i = 0; i < mesh.primitives.size(); i++)
+			{
 				const tinygltf::Primitive& glTFPrimitive = mesh.primitives[i];
 				uint32_t firstIndex = static_cast<uint32_t>(indexBuffer.size());
 				uint32_t vertexStart = static_cast<uint32_t>(vertexBuffer.size());
@@ -248,28 +278,32 @@ public:
 					size_t vertexCount = 0;
 
 					// Get buffer data for vertex positions
-					if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
+					if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end())
+					{
 						const tinygltf::Accessor& accessor = input.accessors[glTFPrimitive.attributes.find("POSITION")->second];
 						const tinygltf::BufferView& view = input.bufferViews[accessor.bufferView];
 						positionBuffer = reinterpret_cast<const float*>(&(input.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 						vertexCount = accessor.count;
 					}
 					// Get buffer data for vertex normals
-					if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end()) {
+					if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end())
+					{
 						const tinygltf::Accessor& accessor = input.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
 						const tinygltf::BufferView& view = input.bufferViews[accessor.bufferView];
 						normalsBuffer = reinterpret_cast<const float*>(&(input.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
 					// Get buffer data for vertex texture coordinates
 					// glTF supports multiple sets, we only load the first one
-					if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end()) {
+					if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end())
+					{
 						const tinygltf::Accessor& accessor = input.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
 						const tinygltf::BufferView& view = input.bufferViews[accessor.bufferView];
 						texCoordsBuffer = reinterpret_cast<const float*>(&(input.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
 
 					// Append data to model's vertex buffer
-					for (size_t v = 0; v < vertexCount; v++) {
+					for (size_t v = 0; v < vertexCount; v++)
+					{
 						Vertex vert{};
 						vert.pos = glm::vec4(glm::make_vec3(&positionBuffer[v * 3]), 1.0f);
 						vert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
@@ -287,24 +321,28 @@ public:
 					indexCount += static_cast<uint32_t>(accessor.count);
 
 					// glTF supports different component types of indices
-					switch (accessor.componentType) {
+					switch (accessor.componentType)
+					{
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
 						const uint32_t* buf = reinterpret_cast<const uint32_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-						for (size_t index = 0; index < accessor.count; index++) {
+						for (size_t index = 0; index < accessor.count; index++)
+						{
 							indexBuffer.push_back(buf[index] + vertexStart);
 						}
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
 						const uint16_t* buf = reinterpret_cast<const uint16_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-						for (size_t index = 0; index < accessor.count; index++) {
+						for (size_t index = 0; index < accessor.count; index++)
+						{
 							indexBuffer.push_back(buf[index] + vertexStart);
 						}
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
 						const uint8_t* buf = reinterpret_cast<const uint8_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-						for (size_t index = 0; index < accessor.count; index++) {
+						for (size_t index = 0; index < accessor.count; index++)
+						{
 							indexBuffer.push_back(buf[index] + vertexStart);
 						}
 						break;
@@ -322,10 +360,12 @@ public:
 			}
 		}
 
-		if (parent) {
+		if (parent)
+		{
 			parent->children.push_back(node);
 		}
-		else {
+		else
+		{
 			nodes.push_back(node);
 		}
 	}
@@ -337,19 +377,23 @@ public:
 	// Draw a single node including child nodes (if present)
 	void drawNode(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, VulkanglTFModel::Node* node)
 	{
-		if (node->mesh.primitives.size() > 0) {
+		if (node->mesh.primitives.size() > 0)
+		{
 			// Pass the node's matrix via push constants
 			// Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
 			glm::mat4 nodeMatrix = node->matrix;
 			VulkanglTFModel::Node* currentParent = node->parent;
-			while (currentParent) {
+			while (currentParent)
+			{
 				nodeMatrix = currentParent->matrix * nodeMatrix;
 				currentParent = currentParent->parent;
 			}
 			// Pass the final matrix to the vertex shader using push constants
 			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeMatrix);
-			for (VulkanglTFModel::Primitive& primitive : node->mesh.primitives) {
-				if (primitive.indexCount > 0) {
+			for (VulkanglTFModel::Primitive& primitive : node->mesh.primitives)
+			{
+				if (primitive.indexCount > 0)
+				{
 					// Get the texture index for this primitive
 					VulkanglTFModel::Texture texture = textures[materials[primitive.materialIndex].baseColorTextureIndex];
 					// Bind the descriptor for the current primitive's texture
@@ -358,7 +402,8 @@ public:
 				}
 			}
 		}
-		for (auto& child : node->children) {
+		for (auto& child : node->children)
+		{
 			drawNode(commandBuffer, pipelineLayout, child);
 		}
 	}
@@ -371,7 +416,8 @@ public:
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertices.buffer, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
 		// Render all nodes at top-level
-		for (auto& node : nodes) {
+		for (auto& node : nodes)
+		{
 			drawNode(commandBuffer, pipelineLayout, node);
 		}
 	}
@@ -385,9 +431,11 @@ public:
 
 	VulkanglTFModel glTFModel;
 
-	struct ShaderData {
+	struct ShaderData
+	{
 		vks::Buffer buffer;
-		struct Values {
+		struct Values
+		{
 			glm::mat4 projection;
 			glm::mat4 model;
 			glm::vec4 lightPos = glm::vec4(5.0f, 5.0f, -5.0f, 1.0f);
@@ -395,7 +443,8 @@ public:
 		} values;
 	} shaderData;
 
-	struct Pipelines {
+	struct Pipelines
+	{
 		VkPipeline solid;
 		VkPipeline wireframe = VK_NULL_HANDLE;
 	} pipelines;
@@ -403,7 +452,8 @@ public:
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSet descriptorSet;
 
-	struct DescriptorSetLayouts {
+	struct DescriptorSetLayouts
+	{
 		VkDescriptorSetLayout matrices;
 		VkDescriptorSetLayout textures;
 	} descriptorSetLayouts;
@@ -423,7 +473,8 @@ public:
 		// Clean up used Vulkan resources
 		// Note : Inherited destructor cleans up resources stored in base class
 		vkDestroyPipeline(device, pipelines.solid, nullptr);
-		if (pipelines.wireframe != VK_NULL_HANDLE) {
+		if (pipelines.wireframe != VK_NULL_HANDLE)
+		{
 			vkDestroyPipeline(device, pipelines.wireframe, nullptr);
 		}
 
@@ -437,7 +488,8 @@ public:
 	virtual void getEnabledFeatures()
 	{
 		// Fill mode non solid is required for wireframe display
-		if (deviceFeatures.fillModeNonSolid) {
+		if (deviceFeatures.fillModeNonSolid)
+		{
 			enabledFeatures.fillModeNonSolid = VK_TRUE;
 		};
 	}
@@ -502,17 +554,20 @@ public:
 		std::vector<uint32_t> indexBuffer;
 		std::vector<VulkanglTFModel::Vertex> vertexBuffer;
 
-		if (fileLoaded) {
+		if (fileLoaded)
+		{
 			glTFModel.loadImages(glTFInput);
 			glTFModel.loadMaterials(glTFInput);
 			glTFModel.loadTextures(glTFInput);
 			const tinygltf::Scene& scene = glTFInput.scenes[0];
-			for (size_t i = 0; i < scene.nodes.size(); i++) {
+			for (size_t i = 0; i < scene.nodes.size(); i++)
+			{
 				const tinygltf::Node node = glTFInput.nodes[scene.nodes[i]];
 				glTFModel.loadNode(node, glTFInput, nullptr, indexBuffer, vertexBuffer);
 			}
 		}
-		else {
+		else
+		{
 			vks::tools::exitFatal("Could not open the glTF file.\n\nThe file is part of the additional asset pack.\n\nRun \"download_assets.py\" in the repository root to download the latest version.", -1);
 			return;
 		}
@@ -525,7 +580,8 @@ public:
 		size_t indexBufferSize = indexBuffer.size() * sizeof(uint32_t);
 		glTFModel.indices.count = static_cast<uint32_t>(indexBuffer.size());
 
-		struct StagingBuffer {
+		struct StagingBuffer
+		{
 			VkBuffer buffer;
 			VkDeviceMemory memory;
 		} vertexStaging, indexStaging;
@@ -620,7 +676,7 @@ public:
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.textures));
 		// Pipeline layout using both descriptor sets (set 0 = matrices, set 1 = material)
 		std::array<VkDescriptorSetLayout, 2> setLayouts = { descriptorSetLayouts.matrices, descriptorSetLayouts.textures };
-		VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+		VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
 		// We will use push constants to push the local matrices of a primitive to the vertex shader
 		VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
 		// Push constant ranges are part of the pipeline layout
@@ -634,7 +690,8 @@ public:
 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 		// Descriptor sets for materials
-		for (auto& image : glTFModel.images) {
+		for (auto& image : glTFModel.images)
+		{
 			const VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.textures, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &image.descriptorSet));
 			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(image.descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &image.texture.descriptor);
@@ -690,7 +747,8 @@ public:
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.solid));
 
 		// Wire frame rendering pipeline
-		if (deviceFeatures.fillModeNonSolid) {
+		if (deviceFeatures.fillModeNonSolid)
+		{
 			rasterizationStateCI.polygonMode = VK_POLYGON_MODE_LINE;
 			rasterizationStateCI.lineWidth = 1.0f;
 			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.wireframe));
@@ -735,7 +793,8 @@ public:
 	virtual void render()
 	{
 		renderFrame();
-		if (camera.updated) {
+		if (camera.updated)
+		{
 			updateUniformBuffers();
 		}
 	}
@@ -745,10 +804,12 @@ public:
 		updateUniformBuffers();
 	}
 
-	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
+	virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay)
 	{
-		if (overlay->header("Settings")) {
-			if (overlay->checkBox("Wireframe", &wireframe)) {
+		if (overlay->header("Settings"))
+		{
+			if (overlay->checkBox("Wireframe", &wireframe))
+			{
 				buildCommandBuffers();
 			}
 		}
