@@ -48,14 +48,14 @@ public:
 	};
 
 	// Single vertex buffer for all primitives
-	struct
+	struct Vertices
 	{
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 	} vertices;
 
 	// Single index buffer for all primitives
-	struct
+	struct Indices
 	{
 		int count;
 		VkBuffer buffer;
@@ -323,7 +323,8 @@ public:
 					// glTF supports different component types of indices
 					switch (accessor.componentType)
 					{
-					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+					{
 						const uint32_t* buf = reinterpret_cast<const uint32_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
 						for (size_t index = 0; index < accessor.count; index++)
 						{
@@ -331,7 +332,8 @@ public:
 						}
 						break;
 					}
-					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+					{
 						const uint16_t* buf = reinterpret_cast<const uint16_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
 						for (size_t index = 0; index < accessor.count; index++)
 						{
@@ -339,7 +341,8 @@ public:
 						}
 						break;
 					}
-					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+					{
 						const uint8_t* buf = reinterpret_cast<const uint8_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
 						for (size_t index = 0; index < accessor.count; index++)
 						{
